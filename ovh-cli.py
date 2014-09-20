@@ -14,10 +14,20 @@ will expose european OVH's API's. Currently supported APIs includes:
     - ovh-ca
     - runabove-ca
 
-Future optimizations:
-    - use a single cache file to minimize disk access
-    - lazy load schemas
+TODO:
+ - list / complete 'enum' arguments
 
+Usage: General: {cli} [--help|--refresh] your command and args --param value --param2 value2
+       Get help on a specific path: {cli} your command --help
+       Get help on a specific action: {cli} your command (list|show|update|create|delete) --help
+
+Note: if requested action conflicts with an API action the API action will be
+      executed. To force the action, prefix it with 'do_'. Fo instance, 'list'
+      becomes 'do_list'
+
+Top level options:
+    --help      This message
+    --refresh   Rebuild available commands list and documentation
 '''
 
 from __future__ import absolute_import
@@ -29,6 +39,7 @@ import ovh
 import json
 import requests
 import argparse
+import tabulate
 
 try:
     import cPickle as pickle
@@ -94,18 +105,20 @@ class ArgParser(object):
     For example, 'me bill random_id' will be parsed to
     '/me/bill/random_id'
     '''
-    def __init__(self, name=None, path=None):
+    def __init__(self, name=None, path=None, help=""):
         '''
         :param str name: argument name as expected on the command line
                          if ``None``, consider this chunk as an argument
         :param str path: original path chunk name in the URL or variable name
+        :param str help: help string for this level
         '''
         self.name = name
         self.path = path
+        self.help = ""
         self._actions = {} #: action_name: action_parser
         self._routes = {} #: route.name: route
 
-    def ensure_parser(self, chunk, path=None):
+    def ensure_parser(self, chunk, path=None, help=""):
         '''
         if ``chunk`` starts with '{' set ``name`` and ``path`` to None.
         Otherwise, set name to snake-case path.
@@ -121,7 +134,7 @@ class ArgParser(object):
         # Is it an argument ?
         if chunk[0] == '{':
             name = None
-            path = None
+            path = chunk
         else:
             name = camel_to_snake(chunk)
             path = path or chunk
@@ -131,18 +144,21 @@ class ArgParser(object):
             return self._routes[name]
 
         # register
-        self._routes[name] = ArgParser(name, path)
+        self._routes[name] = ArgParser(name, path, help)
         return self._routes[name]
 
-    def ensure_path_parser(self, path):
+    def ensure_path_parser(self, path, help=""):
         '''
         Utility function. Ensures that ``path`` will be matchable by this
         parser. If applicablen create intermediate parsers.
 
-        return: leaf parser instance
+        :param str path: the path to ensure in the API
+        :param str help: Help message assiciated with leaf element
+        :return: leaf parser instance
         '''
 
         if not path:
+            self.help = help
             return self
 
         if path[0] == '/':
@@ -154,9 +170,9 @@ class ArgParser(object):
             chunk, path = path, ''
 
         parser = self.ensure_parser(chunk)
-        return parser.ensure_path_parser(path)
+        return parser.ensure_path_parser(path, help)
 
-    def register_http_verb(self, verb, parameters):
+    def register_http_verb(self, verb, parameters, help):
         '''
         Register an action. Actions are mapped to HTTP verbs.
 
@@ -165,6 +181,8 @@ class ArgParser(object):
         POST   --> create
         PUT    --> update
         DELETE --> delete
+
+        :param str help: help message for this action
         '''
         verb = verb.upper()
 
@@ -172,7 +190,10 @@ class ArgParser(object):
         if verb in self._actions:
             raise ArgParserTypeConflict('Duplicated actions %s' % name)
 
-        self._actions[verb] = parameters
+        self._actions[verb] = {
+            'parameters': parameters,
+            'help': help,
+        }
 
     def parse(self, base_url, args):
         '''
@@ -185,21 +206,19 @@ class ArgParser(object):
 
         :returns: verb, path, parsed_arguments
         '''
+        # are we asked some help ?
+        if args and args[0] == '--help':
+            print self.get_help_message()
+            return None, None, None
+
         # do we have an argument to consume ?
-        if args and not args[0].startswith('-'):
+        elif args and not args[0].startswith('-'):
             chunk = args.pop(0)
 
             # is it a route ?
             if chunk in self._routes:
                 parser = self._routes[chunk]
-                base_url += '/'+parser.name
-                return parser.parse(base_url, args)
-
-            # is is an argument ?
-            if None in self._routes:
-                # TODO: encode argument
-                parser = self._routes[None]
-                base_url += '/'+chunk
+                base_url += '/'+parser.path
                 return parser.parse(base_url, args)
 
             # is it an action ?
@@ -209,6 +228,13 @@ class ArgParser(object):
                 args = self.parse_action_params(verb, args, base_url)
                 return verb, base_url, args
 
+            # is is an argument ?
+            if None in self._routes:
+                # TODO: encode argument
+                parser = self._routes[None]
+                base_url += '/'+chunk
+                return parser.parse(base_url, args)
+
             # Ooops
             raise ArgParserUnknownRoute('Unknwon route %s/%s' % (base_url, chunk))
 
@@ -216,7 +242,7 @@ class ArgParser(object):
         else:
             # Do we have actions on this path
             if not self._actions:
-                raise ArgParserUnknownRoute('No actions are available for %s' % base_path)
+                raise ArgParserUnknownRoute('No actions are available for %s' % base_url)
 
             # A single action: do it (maybe DELETE !)
             if len(self._actions) == 1:
@@ -231,7 +257,7 @@ class ArgParser(object):
                 return verb, base_url, args
 
             # ambiguous
-            raise ArgParserUnknownRoute('No default actions is available for %s. Please pick one manually' % base_path)
+            raise ArgParserUnknownRoute('No default actions is available for %s. Please pick one manually' % base_url)
 
     def parse_action_params(self, action, args, base_url):
         '''
@@ -239,7 +265,7 @@ class ArgParser(object):
         '''
         parser = argparse.ArgumentParser(action+' '+base_url)
 
-        for param in self._actions[action]:
+        for param in self._actions[action]['parameters']:
             if param['paramType'] == 'path':
                 continue
 
@@ -253,8 +279,69 @@ class ArgParser(object):
                     type=type,
                     required=bool(param.get('required', 0)),
                     help=param.get('description', ''),
+                    default=argparse.SUPPRESS,
             )
         return parser.parse_args(args)
+
+    def get_help_message(self):
+        msg = ''
+
+        if self.name is not None:
+            # This a regular path chunk
+            msg = "Method "+self.name
+        elif self.path is not None:
+            # this is a parameter
+            msg = "Param '"+self.path+"'"
+
+        # do we have doc ?
+        if self.help:
+            if msg:
+                msg += ': '+self.help
+            else:
+                msg = self.help
+            msg +='\n\n'
+
+        # list actions
+        if self._actions:
+            action_helps = ["Actions:"]
+            for name, action in self._actions.iteritems():
+                # title
+                if name == 'GET':
+                    if None in self._routes: action_title='list'
+                    else: action_title='show'
+                elif name == 'POST': action_title='create'
+                elif name == 'PUT': action_title='update'
+                else: action_title=name.lower()
+
+                # do we have an help message ?
+                if action['help']:
+                    description = action['help']
+                else:
+                    description = action_title.capitalize()+" "+self.name or self.path+" object(s)"
+
+                # default
+                if name == 'GET': description += ' (default)'
+                elif len(self._actions) == 1: description += ' (default)'
+
+                action_helps.append("    %-7s %s" % (action_title, description))
+            msg += '\n'.join(action_helps)+'\n\n'
+
+        # list routes
+        if self._routes:
+            routes_help = ["Methods:"]
+            routes_table = []
+            for name, route in self._routes.iteritems():
+                routes_table.append((
+                    '' + (route.name or route.path),
+                    route.help,
+                ))
+            colw = max((len(x) for x,y in routes_table))
+            fmt = "    %-"+str(colw)+'s %s'
+            for line in routes_table:
+                routes_help.append(fmt % line)
+            msg += '\n'.join(routes_help)+'\n\n'
+
+        return msg
 
 ## utils
 
@@ -296,6 +383,7 @@ def load_schemas(endpoint):
     for api in root_schema['apis']:
         schema_name = api['schema'].format(path=api['path'], format='json')
         do_get_schema(endpoint, schema_name)
+    print ""
 
 def init_arg_parser(endpoint, refresh=False):
     '''
@@ -316,8 +404,9 @@ def init_arg_parser(endpoint, refresh=False):
 
     # First attempt to load parser from cache
     try:
-        with open(cache_file, 'r') as f:
-            return pickle.load(f)
+        if not refresh:
+            with open(cache_file, 'r') as f:
+                return pickle.load(f)
     except:
         pass
 
@@ -329,7 +418,7 @@ def init_arg_parser(endpoint, refresh=False):
     load_schemas(endpoint)
 
     # Build parser
-    parser = ArgParser('root', '')
+    parser = ArgParser(None, None)
 
     for schema in SCHEMAS.values():
         if not 'resourcePath' in schema:
@@ -338,19 +427,21 @@ def init_arg_parser(endpoint, refresh=False):
         # add root command
         base_path = schema['resourcePath']
         api_cmd = os.path.basename(base_path)
-        api_parser = parser.ensure_parser(api_cmd, base_path)
+        api_parser = parser.ensure_parser(api_cmd, base_path[1:])
 
         # add subcommands
 
         for api in schema['apis']:
             command_path = api['path'][len(base_path):]
-            command_parser = api_parser.ensure_path_parser(command_path)
+            command_parser = api_parser.ensure_path_parser(command_path, api['description'])
 
             # add actions
             for operation in api['operations']:
                 command_parser.register_http_verb(
-                        operation['httpMethod'], 
-                        operation['parameters'])
+                        operation['httpMethod'],
+                        operation['parameters'],
+                        operation['description']
+                )
 
     # cache resulting parser
     with open(cache_file, 'w') as f:
@@ -358,16 +449,51 @@ def init_arg_parser(endpoint, refresh=False):
 
     return parser
 
+def do_usage():
+    print sys.modules[__name__].__doc__.format(cli=sys.argv[0])
+
 if __name__ == '__main__':
+    options = {
+        'refresh': False,
+        'help': False,
+    }
+
     # load and validate endpoint name from cli name
     endpoint = os.path.basename(sys.argv[0])
     if endpoint not in ENDPOINTS:
         print >> sys.stderr, "Unknown endpoint", endpoint
         sys.exit(1)
 
+    # Ensure enough arguments
+    args = sys.argv[1:]
+    if not sys.argv:
+        do_usage()
+        sys.exit(1)
+
+    # special/top level arguments:
+    for i in xrange(len(args)):
+        if not args[0].startswith('--'):
+            break
+
+        arg = args.pop(0)
+        if arg == '--refresh':
+            options['refresh'] = not options['refresh']
+        if arg == '--help':
+            options['help'] = not options['help']
+
     # create argument parser
-    parser = init_arg_parser(endpoint)
-    verb, method, arguments = parser.parse('', sys.argv[1:])
+    parser = init_arg_parser(endpoint, options['refresh'])
+
+    if options['help']:
+        do_usage()
+        print parser.get_help_message()
+        sys.exit(1)
+
+    verb, method, arguments = parser.parse('', args)
+
+    if verb is None:
+        # abort
+        sys.exit(0)
+
     data = getattr(ovh.Client(endpoint), verb.lower())(method, **arguments.__dict__)
     pretty_print_json(data)
-
