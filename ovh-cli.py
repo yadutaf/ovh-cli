@@ -30,6 +30,11 @@ import json
 import requests
 import argparse
 
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
 from ovh.client import ENDPOINTS
 
 SCHEMAS_BASE_PATH='./schemas/'
@@ -151,7 +156,7 @@ class ArgParser(object):
         parser = self.ensure_parser(chunk)
         return parser.ensure_path_parser(path)
 
-    def register_http_verb(self, verb, arg_parser):
+    def register_http_verb(self, verb, parameters):
         '''
         Register an action. Actions are mapped to HTTP verbs.
 
@@ -167,7 +172,7 @@ class ArgParser(object):
         if verb in self._actions:
             raise ArgParserTypeConflict('Duplicated actions %s' % name)
 
-        self._actions[verb] = arg_parser
+        self._actions[verb] = parameters
 
     def parse(self, base_url, args):
         '''
@@ -201,7 +206,7 @@ class ArgParser(object):
             chunk = chunk.lower()
             if chunk in ACTION_ALIASES and ACTION_ALIASES[chunk] in self._actions:
                 verb = ACTION_ALIASES[chunk]
-                args = self._actions[verb].parse_args(args)
+                #args = self._actions[verb].parse_args(args)
                 return verb, base_url, args
 
             # Ooops
@@ -216,13 +221,13 @@ class ArgParser(object):
             # A single action: do it (maybe DELETE !)
             if len(self._actions) == 1:
                 verb = self._actions.keys()[0]
-                args = self._actions[verb].parse_args(args)
+                #args = self._actions[verb].parse_args(args)
                 return verb, base_url, args
 
             # multiple actions, try innocuous 'GET'
             if 'GET' in self._actions:
                 verb = 'GET'
-                args = self._actions[verb].parse_args(args)
+                #args = self._actions[verb].parse_args(args)
                 return verb, base_url, args
 
             # ambiguous
@@ -245,38 +250,17 @@ def camel_to_snake(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1-\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1-\2', s1).lower()
 
-def do_get_schema(endpoint, name, refresh=False):
+def do_get_schema(endpoint, name):
     '''
-    Download and persist schema ``name`` for api at ``endpoint``
-    if ``refresh == True``, force download.
+    Download and cache schema ``name`` in memory.
     '''
-    if name in SCHEMAS and not refresh:
+    if name in SCHEMAS:
         return SCHEMAS['name']
 
-    if name == '/':
-        json_file = SCHEMAS_BASE_PATH + endpoint + 'root.json'
-    else:
-        json_file = SCHEMAS_BASE_PATH + endpoint + name
-    destination = os.path.dirname(json_file)
     url = ENDPOINTS[endpoint]+name
 
-    # cache dir exists ?
-    if not os.path.exists(destination):
-        os.makedirs(destination)
-
-    # cache file exist ?
-    if not os.path.exists(json_file) or refresh:
-        print "Downloading schema", schema_name
-        schema = requests.get(url).text
-        with open(json_file, 'w') as f:
-            f.write(schema)
-    # return from disk cache
-    else:
-        with open(json_file, 'r') as f:
-            schema = f.read()
-
-    # parse and load into internal cache and return
-    SCHEMAS[name] = json.loads(schema)
+    print "Downloading schema", name
+    SCHEMAS[name] = requests.get(url).json()
     return SCHEMAS[name]
 
 def load_schemas(endpoint):
@@ -290,14 +274,38 @@ def load_schemas(endpoint):
         schema_name = api['schema'].format(path=api['path'], format='json')
         do_get_schema(endpoint, schema_name)
 
-def build_arg_parser_from_cache():
+def init_arg_parser(endpoint, refresh=False):
     '''
-    Build commands from cache. As there is (currently) no ambiguity, always
-    take only the second part of the 'resourcePath' as command name and convert
-    it to snake case.
+    Build command line parser from json and cache result on disk for faster
+    load.
 
-    For instance, '/hosting/privateDatabase' leads to 'private-database'
+    As there is (currently) no ambiguity, always take only the second part of
+    the 'resourcePath' as command name. For instance, '/hosting/privateDatabase'
+    leads to 'private-database'.
+
+    All command line arguments are converted to snake-case.
+
+    :param str endpoint: api endpoint name.
+    :param boolean refresh: when ``True``, bypass cache, no matter its state.
     '''
+
+    cache_file = SCHEMAS_BASE_PATH+endpoint
+
+    # First attempt to load parser from cache
+    try:
+        with open(cache_file, 'r') as f:
+            return pickle.load(f)
+    except:
+        pass
+
+    # cache dir exists ?
+    if not os.path.exists(SCHEMAS_BASE_PATH):
+        os.makedirs(SCHEMAS_BASE_PATH)
+
+    # get schemas
+    load_schemas(endpoint)
+
+    # Build parser
     parser = ArgParser('root', '')
 
     for schema in SCHEMAS.values():
@@ -317,8 +325,13 @@ def build_arg_parser_from_cache():
 
             # add actions
             for operation in api['operations']:
-                argparser = argparse.ArgumentParser()
-                command_parser.register_http_verb(operation['httpMethod'], argparser)
+                command_parser.register_http_verb(
+                        operation['httpMethod'], 
+                        operation['parameters'])
+
+    # cache resulting parser
+    with open(cache_file, 'w') as f:
+        return pickle.dump(parser, f, pickle.HIGHEST_PROTOCOL)
 
     return parser
 
@@ -329,9 +342,8 @@ if __name__ == '__main__':
         print >> sys.stderr, "Unknown endpoint", endpoint
         sys.exit(1)
 
-    # ensure we have all parse
-    load_schemas(endpoint)
-    parser = build_arg_parser_from_cache()
+    # create argument parser
+    parser = init_arg_parser(endpoint)
 
     print parser.parse(ENDPOINTS[endpoint], sys.argv[1:])
 
