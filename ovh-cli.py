@@ -206,7 +206,7 @@ class ArgParser(object):
             chunk = chunk.lower()
             if chunk in ACTION_ALIASES and ACTION_ALIASES[chunk] in self._actions:
                 verb = ACTION_ALIASES[chunk]
-                #args = self._actions[verb].parse_args(args)
+                args = self.parse_action_params(verb, args, base_url)
                 return verb, base_url, args
 
             # Ooops
@@ -221,17 +221,40 @@ class ArgParser(object):
             # A single action: do it (maybe DELETE !)
             if len(self._actions) == 1:
                 verb = self._actions.keys()[0]
-                #args = self._actions[verb].parse_args(args)
+                args = self.parse_action_params(verb, args, base_url)
                 return verb, base_url, args
 
             # multiple actions, try innocuous 'GET'
             if 'GET' in self._actions:
                 verb = 'GET'
-                #args = self._actions[verb].parse_args(args)
+                args = self.parse_action_params(verb, args, base_url)
                 return verb, base_url, args
 
             # ambiguous
             raise ArgParserUnknownRoute('No default actions is available for %s. Please pick one manually' % base_path)
+
+    def parse_action_params(self, action, args, base_url):
+        '''
+        parse remaining positional arguments
+        '''
+        parser = argparse.ArgumentParser(action+' '+base_url)
+
+        for param in self._actions[action]:
+            if param['paramType'] == 'path':
+                continue
+
+            type=str
+            if param['dataType'] == 'long': type=long
+            if param['dataType'] == 'int': type=int
+            if param['dataType'] == 'float': type=float
+            if param['dataType'] == 'double': type=float
+            parser.add_argument(
+                    '--'+param['name'],
+                    type=type,
+                    required=bool(param.get('required', 0)),
+                    help=param.get('description', ''),
+            )
+        return parser.parse_args(args)
 
 ## utils
 
