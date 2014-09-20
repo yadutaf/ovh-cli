@@ -354,7 +354,7 @@ def init_arg_parser(endpoint, refresh=False):
 
     # cache resulting parser
     with open(cache_file, 'w') as f:
-        return pickle.dump(parser, f, pickle.HIGHEST_PROTOCOL)
+        pickle.dump(parser, f, pickle.HIGHEST_PROTOCOL)
 
     return parser
 
@@ -367,6 +367,7 @@ if __name__ == '__main__':
 
     # create argument parser
     parser = init_arg_parser(endpoint)
-
-    print parser.parse(ENDPOINTS[endpoint], sys.argv[1:])
+    verb, method, arguments = parser.parse('', sys.argv[1:])
+    data = getattr(ovh.Client(endpoint), verb.lower())(method, **arguments.__dict__)
+    pretty_print_json(data)
 
