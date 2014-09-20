@@ -12,10 +12,10 @@ Bare simple Command Line Interface (CLI) for OVH.
 Highlights
 ==========
 
- - **FULL** OVH-EU, OVH-CA, RunAbove-ca API support
- - does not require *any* password
- - pretty printing, as you would expect (tables, list, graphs, ...)
- - ... but raw json output is still available
+- **FULL** OVH-EU, OVH-CA, RunAbove-ca API support
+- does not require *any* password
+- pretty printing, as you would expect (tables, list, graphs, ...)
+- ... but raw json output is still available
 
 Installation
 ============
@@ -44,9 +44,9 @@ Depending on the API you plan to use, you may use one of these URLs to grant
 full script access to your account. Feel free to restrict accesses permissions
 as required by your usage for a better security!
 
-- OVH Europe: https://eu.api.ovh.com/createToken/index.cgi?GET=/*&POST=/*&DELETE=/*&PUT=/*
-- OVH North America: https://ca.api.ovh.com/createToken/index.cgi?GET=/*&POST=/*&DELETE=/*&PUT=/*
-- Runabove: https://api.runabove.com/createToken/index.cgi?GET=/*&POST=/*&DELETE=/*&PUT=/*
+- `OVH Europe <https://eu.api.ovh.com/createToken/index.cgi?GET=/*&POST=/*&DELETE=/*&PUT=/*>`_
+- `OVH North America <https://ca.api.ovh.com/createToken/index.cgi?GET=/*&POST=/*&DELETE=/*&PUT=/*>`_
+- `Runabove <https://api.runabove.com/createToken/index.cgi?GET=/*&POST=/*&DELETE=/*&PUT=/*>`_
 
 Then you should put your credentials in ``~/.ovh.conf`` like:
 
@@ -80,6 +80,7 @@ Show you personal informations
 ------------------------------
 
 .. code::
+
   >>> ./ovh-eu me # this is a shotcut for './ovh-eu me list'
   --------------------------------------  ----------------------
   Sex                                     male
