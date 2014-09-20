@@ -17,7 +17,7 @@ will expose european OVH's API's. Currently supported APIs includes:
 TODO:
  - list / complete 'enum' arguments
 
-Usage: General: {cli} [--help|--refresh] your command and args --param value --param2 value2
+Usage: General: {cli} [--help|--refresh|--format (pretty|json)] your command and args --param value --param2 value2
        Get help on a specific path: {cli} your command --help
        Get help on a specific action: {cli} your command (list|show|update|create|delete) --help
 
@@ -28,6 +28,7 @@ Note: if requested action conflicts with an API action the API action will be
 Top level options:
     --help      This message
     --refresh   Rebuild available commands list and documentation
+    --format    Output format, can be 'pretty' or 'json'. (default='pretty')
 '''
 
 from __future__ import absolute_import
@@ -40,6 +41,8 @@ import json
 import requests
 import argparse
 import tabulate
+import datetime
+from itertools import izip
 
 try:
     import cPickle as pickle
@@ -288,7 +291,7 @@ class ArgParser(object):
 
         if self.name is not None:
             # This a regular path chunk
-            msg = "Method "+self.name
+            msg = "Method '"+self.name+"'"
         elif self.path is not None:
             # this is a parameter
             msg = "Param '"+self.path+"'"
@@ -345,13 +348,13 @@ class ArgParser(object):
 
 ## utils
 
-def pretty_print_json(data):
-    print json.dumps(
-            data,
-            sort_keys=True,
-            indent=4,
-            separators=(',', ': ')
-    )
+from itertools import izip
+
+def grouped(iterable, n):
+    '''
+    source: http://stackoverflow.com/questions/5389507/iterating-over-every-two-elements-in-a-list
+    '''
+    return izip(*[iter(iterable)]*n)
 
 def camel_to_snake(name):
     '''
@@ -359,6 +362,152 @@ def camel_to_snake(name):
     '''
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1-\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1-\2', s1).lower()
+
+def camel_to_human(name):
+    '''
+    add spaces between words.
+    '''
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1 \2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1 \2', s1).capitalize()
+
+def pretty_print_value_scalar(data):
+    # float data ?
+    if isinstance(data, float):
+        return "%.3f" % data
+    elif isinstance(data, (str, unicode)):
+        return camel_to_human(data)
+    # fallback
+    else:
+        return unicode(data)
+
+def pretty_print_value_dict(data):
+    # values ?
+    if sorted(data.keys()) == [u'unit', u'value']:
+        return u"%s%s" % (pretty_print_value_scalar(data['value']), data['unit'])
+    # prices
+    if sorted(data.keys()) == [u'currencyCode', u'text', u'value']:
+        return pretty_print_value_scalar(data['text'])
+    # fallback
+    else:
+        return str(data)
+
+def pretty_print_value_list(data):
+    # values ?
+    if data:
+        return ', '.join([pretty_print_value_scalar(x) for x in data])
+    # fallback
+    else:
+        return '<empty list>'
+
+def pretty_print_value(data):
+    if isinstance(data, (int, long, float)):
+        return pretty_print_value_scalar(data)
+    elif isinstance(data, dict):
+        return pretty_print_value_dict(data)
+    elif isinstance(data, list):
+        return pretty_print_value_list(data)
+    else:
+        return unicode(data)
+
+## formaters
+
+def pretty_print_json(client, verb, method, arguments):
+    data = getattr(client, verb.lower())(method, **arguments)
+
+    print json.dumps(
+        data,
+        sort_keys=True,
+        indent=4,
+        separators=(',', ': ')
+    )
+
+def pretty_print_terminal(client, verb, method, arguments):
+    data = getattr(client, verb.lower())(method, **arguments)
+
+    # looks a *lot* like a listing: get all elements
+    if verb == 'GET'\
+       and isinstance(data, list)\
+       and data and isinstance(data[0], (int, long, str, unicode)):
+
+        table = []
+        for elem in data:
+            line = client.get(method+'/'+elem)
+            line_data = [elem]
+            for item in line.values():
+                line_data.append(pretty_print_value(item))
+            table.append(line_data)
+        headers = ['ID']+[camel_to_human(title) for title in line.keys()]
+        print tabulate.tabulate(table, headers=headers)
+    elif isinstance(data, dict):
+        # xdsl plots
+        if sorted(data.keys()) == [u'unit', u'values']:
+            # get points
+            xs = [d['timestamp'] for d in data['values']]
+            ys = [d['value'] for d in data['values']]
+
+            # get y scale
+            count = len(ys)
+
+            ymax = max(ys)
+            yscale = 1.0
+            unit = data['unit']
+
+            if ymax > 1000*1000*1000:
+                yscale = 1000*1000*1000
+                unit = 'G'+unit
+            elif ymax > 1000*1000:
+                yscale = 1000*1000
+                unit = 'M'+unit
+            elif ymax > 1000:
+                yscale = 1000
+                unit = 'k'+unit
+
+            # downscale on x too. Try to get close to 50 with only power of 2
+            xscale = 2**(int(round(count/50.0))-1).bit_length()
+            values = data['values']
+            values += [None]*(4-count%4) # padding
+            points = grouped(values, xscale)
+
+            for point_g in points:
+                # aggregate on last date
+                value = 0.0
+                divider = 0
+                for point in point_g:
+                    if point is None: break
+                    value += point['value']
+                    divider += 1
+                    date = datetime.datetime.fromtimestamp(point['timestamp']).strftime('%d/%m/%Y %H:%M')
+
+                value = value / divider / yscale
+                bar = '.'*int(value/(ymax/yscale)*80)
+                print '%s %3.3f %s | %s' % (date, value, unit, bar)
+        else:
+            table = []
+            for key, value in data.iteritems():
+                key = pretty_print_value_scalar(key)
+                value = pretty_print_value(value)
+                table.append((key, value))
+            print tabulate.tabulate(table)
+    elif isinstance(data, list):
+        for value in data:
+            print pretty_print_value_scalar(data)
+    elif isinstance(data, (int, long, float, unicode, str)):
+        print pretty_print_value_scalar(data)
+    else:
+        # Well, we should not be there, that's just in case...
+        print json.dumps(
+            data,
+            sort_keys=True,
+            indent=4,
+            separators=(',', ': ')
+        )
+
+FORMATERS = {
+    'json': pretty_print_json,
+    'pretty': pretty_print_terminal,
+}
+
+## parser
 
 def do_get_schema(endpoint, name):
     '''
@@ -456,6 +605,7 @@ if __name__ == '__main__':
     options = {
         'refresh': False,
         'help': False,
+        'format': 'pretty', # or 'json'
     }
 
     # load and validate endpoint name from cli name
@@ -471,15 +621,19 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # special/top level arguments:
-    for i in xrange(len(args)):
-        if not args[0].startswith('--'):
-            break
-
+    while args and args[0].startswith('--'):
         arg = args.pop(0)
         if arg == '--refresh':
             options['refresh'] = not options['refresh']
         if arg == '--help':
             options['help'] = not options['help']
+        if arg == '--format':
+            try: options['format'] = args.pop(0)
+            except IndexError: pass
+
+            if options['format'] not in FORMATERS:
+                print >>sys.stderr, 'Invalid format %s, expected one of %s' % (options['format'], ', '.join(FORMATERS))
+                sys.exit(1)
 
     # create argument parser
     parser = init_arg_parser(endpoint, options['refresh'])
@@ -495,5 +649,5 @@ if __name__ == '__main__':
         # abort
         sys.exit(0)
 
-    data = getattr(ovh.Client(endpoint), verb.lower())(method, **arguments.__dict__)
-    pretty_print_json(data)
+    client = ovh.Client(endpoint)
+    FORMATERS[options['format']](client, verb, method, arguments.__dict__)
