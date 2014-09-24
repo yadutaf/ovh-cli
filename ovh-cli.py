@@ -239,7 +239,7 @@ class ArgParser(object):
                 return parser.parse(base_url, args)
 
             # Ooops
-            raise ArgParserUnknownRoute('Unknwon route %s/%s' % (base_url, chunk))
+            raise ArgParserUnknownRoute('Unknown route %s/%s' % (base_url, chunk))
 
         # no action neither positional argument: take default action
         else:
@@ -616,7 +616,7 @@ if __name__ == '__main__':
 
     # Ensure enough arguments
     args = sys.argv[1:]
-    if not sys.argv:
+    if not args:
         do_usage()
         sys.exit(1)
 
@@ -643,7 +643,11 @@ if __name__ == '__main__':
         print parser.get_help_message()
         sys.exit(1)
 
-    verb, method, arguments = parser.parse('', args)
+    try:
+        verb, method, arguments = parser.parse('', args)
+    except ArgParserUnknownRoute as e:
+        print e
+        sys.exit(1)
 
     if verb is None:
         # abort
