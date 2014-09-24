@@ -42,6 +42,7 @@ import requests
 import argparse
 import tabulate
 import datetime
+import urllib
 from itertools import izip
 
 try:
@@ -235,7 +236,7 @@ class ArgParser(object):
             if None in self._routes:
                 # TODO: encode argument
                 parser = self._routes[None]
-                base_url += '/'+chunk
+                base_url += '/'+urllib.quote_plus(chunk)
                 return parser.parse(base_url, args)
 
             # Ooops
@@ -431,7 +432,7 @@ def pretty_print_terminal(client, verb, method, arguments):
 
         table = []
         for elem in data:
-            line = client.get(method+'/'+elem)
+            line = client.get(method+'/'+urllib.quote_plus(elem))
             line_data = [elem]
             for item in line.values():
                 line_data.append(pretty_print_value(item))
