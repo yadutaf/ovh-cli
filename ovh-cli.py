@@ -85,6 +85,14 @@ class ArgParserException(Exception): pass
 class ArgParserTypeConflict(ArgParserException): pass
 class ArgParserUnknownRoute(ArgParserException): pass
 
+def schema_datatype_to_type(datatype):
+    if datatype == 'string': return str
+    if datatype == 'long':   return long
+    if datatype == 'int':    return int
+    if datatype == 'float':  return float
+    if datatype == 'double': return float
+    return None
+
 class ArgParser(object):
     '''
     Recursively parse arbitrary url-like argument list. Internaly, maintains an
@@ -109,7 +117,7 @@ class ArgParser(object):
     For example, 'me bill random_id' will be parsed to
     '/me/bill/random_id'
     '''
-    def __init__(self, name=None, path=None, help=""):
+    def __init__(self, name=None, path=None, help="", schema=None):
         '''
         :param str name: argument name as expected on the command line
                          if ``None``, consider this chunk as an argument
@@ -119,10 +127,11 @@ class ArgParser(object):
         self.name = name
         self.path = path
         self.help = ""
+        self.schema = schema or {'models': {}}
         self._actions = {} #: action_name: action_parser
         self._routes = {} #: route.name: route
 
-    def ensure_parser(self, chunk, path=None, help=""):
+    def ensure_parser(self, chunk, path=None, help="", schema=None):
         '''
         if ``chunk`` starts with '{' set ``name`` and ``path`` to None.
         Otherwise, set name to snake-case path.
@@ -148,10 +157,10 @@ class ArgParser(object):
             return self._routes[name]
 
         # register
-        self._routes[name] = ArgParser(name, path, help)
+        self._routes[name] = ArgParser(name, path, help, schema)
         return self._routes[name]
 
-    def ensure_path_parser(self, path, help=""):
+    def ensure_path_parser(self, path, help="", schema=None):
         '''
         Utility function. Ensures that ``path`` will be matchable by this
         parser. If applicablen create intermediate parsers.
@@ -173,8 +182,8 @@ class ArgParser(object):
         else:
             chunk, path = path, ''
 
-        parser = self.ensure_parser(chunk)
-        return parser.ensure_path_parser(path, help)
+        parser = self.ensure_parser(chunk, schema=schema)
+        return parser.ensure_path_parser(path, help, schema)
 
     def register_http_verb(self, verb, parameters, help):
         '''
@@ -273,17 +282,26 @@ class ArgParser(object):
             if param['paramType'] == 'path':
                 continue
 
-            type=str
-            if param['dataType'] == 'long': type=long
-            if param['dataType'] == 'int': type=int
-            if param['dataType'] == 'float': type=float
-            if param['dataType'] == 'double': type=float
+            # decode datatype
+            datatype = schema_datatype_to_type(param['dataType'])
+            choices = None
+
+            if datatype is None:
+                if param['dataType'] in self.schema['models']:
+                    model = self.schema['models'][param['dataType']]
+                    if 'enum' in model:
+                        datatype = schema_datatype_to_type(model['enumType'])
+                        choices = model['enum']
+                else:
+                    datatype = str
+
             parser.add_argument(
                     '--'+param['name'],
-                    type=type,
+                    type=datatype,
                     required=bool(param.get('required', 0)),
                     help=param.get('description', ''),
                     default=argparse.SUPPRESS,
+                    choices=choices,
             )
         return parser.parse_args(args)
 
@@ -583,7 +601,7 @@ def init_arg_parser(endpoint, refresh=False):
         # add subcommands
         for api in schema['apis']:
             command_path = api['path'][len(base_path):]
-            command_parser = api_parser.ensure_path_parser(command_path, api['description'])
+            command_parser = api_parser.ensure_path_parser(command_path, api['description'], schema)
 
             # add actions
             for operation in api['operations']:
