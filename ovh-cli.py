@@ -362,6 +362,7 @@ def camel_to_snake(name):
     from: http://stackoverflow.com/questions/1175208/elegant-python-function-to-convert-camelcase-to-camel-case
     '''
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1-\2', name)
+    s1 = s1.replace('/', '-')
     return re.sub('([a-z0-9])([A-Z])', r'\1-\2', s1).lower()
 
 def camel_to_human(name):
@@ -576,11 +577,10 @@ def init_arg_parser(endpoint, refresh=False):
 
         # add root command
         base_path = schema['resourcePath']
-        api_cmd = os.path.basename(base_path)
+        api_cmd = camel_to_snake(base_path[1:])
         api_parser = parser.ensure_parser(api_cmd, base_path[1:])
 
         # add subcommands
-
         for api in schema['apis']:
             command_path = api['path'][len(base_path):]
             command_parser = api_parser.ensure_path_parser(command_path, api['description'])
