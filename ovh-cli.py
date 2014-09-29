@@ -45,6 +45,8 @@ import datetime
 import urllib
 from itertools import izip
 
+import textwrap
+
 try:
     import cPickle as pickle
 except ImportError:
@@ -429,6 +431,29 @@ def pretty_print_value(data):
     else:
         return unicode(data)
 
+def pretty_print_table(data, headers, max_col_width):
+    # redy to print lines
+    table = []
+
+    # build lines + compute max width
+    col_width = [0]*len(headers)
+    for line in data:
+        line_lines = []
+        for i, cell in enumerate(line):
+            cell = pretty_print_value(cell)
+            col_width[i] = max(col_width[i], min(len(cell), max_col_width))
+            cell_lines = textwrap.wrap(cell, max_col_width)
+
+            for j, cell_line in enumerate(cell_lines):
+                if j >= len(line_lines):
+                    line_lines.append(['']*len(headers))
+                line_lines[j][i] = cell_line
+        table += line_lines
+
+    # print table
+    print tabulate.tabulate(table, headers=headers)
+
+
 ## formaters
 
 def pretty_print_json(client, verb, method, arguments):
@@ -454,10 +479,10 @@ def pretty_print_terminal(client, verb, method, arguments):
             line = client.get(method+'/'+urllib.quote_plus(str(elem)))
             line_data = [elem]
             for item in line.values():
-                line_data.append(pretty_print_value(item))
+                line_data.append(item)
             table.append(line_data)
         headers = ['ID']+[camel_to_human(title) for title in line.keys()]
-        print tabulate.tabulate(table, headers=headers)
+        print pretty_print_table(table, headers, 50)
     elif isinstance(data, dict):
         # xdsl plots
         if sorted(data.keys()) == [u'unit', u'values']:
