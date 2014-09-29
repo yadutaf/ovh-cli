@@ -451,7 +451,7 @@ def pretty_print_terminal(client, verb, method, arguments):
 
         table = []
         for elem in data:
-            line = client.get(method+'/'+urllib.quote_plus(elem))
+            line = client.get(method+'/'+urllib.quote_plus(str(elem)))
             line_data = [elem]
             for item in line.values():
                 line_data.append(pretty_print_value(item))
