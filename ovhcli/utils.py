@@ -17,9 +17,27 @@ def camel_to_snake(name):
     s1 = s1.replace('/', '-')
     return re.sub('([a-z0-9])([A-Z])', r'\1-\2', s1).lower()
 
+def camel_to_bash(name):
+    '''
+    upper case + underscore
+    '''
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    s1 = s1.replace('/', '-')
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).upper()
+
 def camel_to_human(name):
     '''
     add spaces between words.
     '''
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1 \2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1 \2', s1).capitalize()
+
+def pretty_print_value_scalar(data):
+    # float data ?
+    if isinstance(data, float):
+        return "%.3f" % data
+    elif isinstance(data, (str, unicode)):
+        return camel_to_human(data)
+    # fallback
+    else:
+        return unicode(data)

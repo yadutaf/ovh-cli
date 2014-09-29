@@ -5,19 +5,9 @@ import datetime
 import tabulate
 import textwrap
 
-from ovhcli.utils import grouped, camel_to_snake, camel_to_human
+from ovhcli.utils import grouped, camel_to_snake, camel_to_human, pretty_print_value_scalar
 
 ## utils
-
-def pretty_print_value_scalar(data):
-    # float data ?
-    if isinstance(data, float):
-        return "%.3f" % data
-    elif isinstance(data, (str, unicode)):
-        return camel_to_human(data)
-    # fallback
-    else:
-        return unicode(data)
 
 def pretty_print_value_dict(data):
     # values ?
