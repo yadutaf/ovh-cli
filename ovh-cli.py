@@ -65,7 +65,7 @@ ACTION_ALIASES = {
     'post': 'POST',
     'create': 'POST',
     'put': 'PUT',
-    'udate': 'PUT',
+    'update': 'PUT',
     'set': 'PUT',
     'delete': 'DELETE',
 
@@ -76,7 +76,7 @@ ACTION_ALIASES = {
     'do_post': 'POST',
     'do_create': 'POST',
     'do_put': 'PUT',
-    'do_udate': 'PUT',
+    'do_update': 'PUT',
     'do_set': 'PUT',
     'do_delete': 'DELETE',
 }
