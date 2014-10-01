@@ -120,6 +120,7 @@ def do_usage():
 
 if __name__ == '__main__':
     options = {
+        'debug': False,
         'refresh': False,
         'help': False,
         'format': 'terminal', # or 'json'
@@ -138,6 +139,8 @@ if __name__ == '__main__':
         arg = args.pop(0)
         if arg == '--refresh':
             options['refresh'] = not options['refresh']
+        if arg == '--debug':
+            options['debug'] = not options['debug']
         if arg == '--help':
             options['help'] = not options['help']
         if arg == '--format':
@@ -172,4 +175,14 @@ if __name__ == '__main__':
         sys.exit(0)
 
     client = ovh.Client(endpoint)
-    get_formater(options['format']).do_format(client, verb, method, arguments.__dict__)
+    formater = get_formater(options['format'])
+    try:
+      formater.do_format(client, verb, method, arguments.__dict__)
+    except Exception as e:
+      # print noce error message
+      print e
+
+      # when in debug mode, re-raise to see the full stack-trace
+      if options['debug']:
+        raise
+

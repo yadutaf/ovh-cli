@@ -150,6 +150,31 @@ List IPs associated with an XDSL line:
   2001:41d0:xxxx:xx00::                      2001:41d0:xxxx:xx00::       56  v6         2001:41 d0:1:e2 b8::1, 2001:41 d0:3:163::1       False
   109.190.xxx.xxx        home.my-domain.fr.  109.190.xxx.xxx             32  v4         91.121.161.184, 91.121.164.227, 188.165.197.144  True
 
+Manage your applications / credentials
+--------------------------------------
+
+List declared applications:
+
+.. code::
+
+  >>> ./ovh-eu me api application
+  status    applicationKey      applicationId  name          description
+  --------  ----------------  ---------------  ------------  -----------------------
+  active    xxxxxxxxxxxxxxxx             1234  batchDomains  batch domain operations
+  active    yyyyyyyyyyyyyyyy             5678  console       console
+
+Delete an application: (all users will loose access)
+
+.. code::
+
+  >>> ./ovh-eu me api application 1234 delete
+  Success
+  >>> ./ovh-eu me api application 1234 delete
+  The requested object (id = 1234) does not exist
+
+The same logic works exactly identically for "credentials". Credentials are
+access granted to your account to third party applications.
+
 Get daily xdsl DL BandWidth statistics:
 ---------------------------------------
 

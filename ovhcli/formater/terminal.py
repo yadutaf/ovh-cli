@@ -134,11 +134,9 @@ def do_format(client, verb, method, arguments):
             print pretty_print_value_scalar(data)
     elif isinstance(data, (int, long, float, unicode, str)):
         print pretty_print_value_scalar(data)
+    elif not data:
+      print "Success"
     else:
-        # Well, we should not be there, that's just in case...
-        print json.dumps(
-            data,
-            sort_keys=True,
-            indent=4,
-            separators=(',', ': ')
-        )
+      # Should no be here...
+      print data
+
