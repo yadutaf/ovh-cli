@@ -131,11 +131,7 @@ if __name__ == '__main__':
         print >> sys.stderr, "Unknown endpoint", endpoint
         sys.exit(1)
 
-    # Ensure enough arguments
     args = sys.argv[1:]
-    if not args:
-        do_usage()
-        sys.exit(1)
 
     # special/top level arguments:
     while args and args[0].startswith('--'):
@@ -158,6 +154,11 @@ if __name__ == '__main__':
     if options['help']:
         do_usage()
         print parser.get_help_message()
+        sys.exit(1)
+
+    # Ensure enough arguments
+    if not args:
+        do_usage()
         sys.exit(1)
 
     try:

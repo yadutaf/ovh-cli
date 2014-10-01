@@ -205,6 +205,7 @@ class ArgParser(object):
         else:
             # Do we have actions on this path
             if not self._actions:
+                print self.get_help_message()
                 raise ArgParserUnknownRoute('No actions are available for %s' % base_url)
 
             # A single action: do it (maybe DELETE !)
