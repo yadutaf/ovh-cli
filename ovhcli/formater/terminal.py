@@ -38,12 +38,13 @@ def pretty_print_value(data):
     else:
         return unicode(data)
 
-def pretty_print_table(data, headers, max_col_width):
+def pretty_print_table(data, max_col_width=50, headers=None):
     # redy to print lines
     table = []
+    n_col = len(data[0])
 
     # build lines + compute max width
-    col_width = [0]*len(headers)
+    col_width = [0]*n_col
     for line in data:
         line_lines = []
         for i, cell in enumerate(line):
@@ -53,12 +54,12 @@ def pretty_print_table(data, headers, max_col_width):
 
             for j, cell_line in enumerate(cell_lines):
                 if j >= len(line_lines):
-                    line_lines.append(['']*len(headers))
+                    line_lines.append(['']*n_col)
                 line_lines[j][i] = cell_line
         table += line_lines
 
     # print table
-    return tabulate.tabulate(table, headers=headers)
+    return tabulate.tabulate(table, headers=headers or [])
 
 ## entry point
 
@@ -78,7 +79,7 @@ def do_format(client, verb, method, arguments):
                 line_data.append(item)
             table.append(line_data)
         headers = ['ID']+[camel_to_human(title) for title in line.keys()]
-        print pretty_print_table(table, headers, 50)
+        print pretty_print_table(table, headers=headers, max_col_width=50)
     elif isinstance(data, dict):
         # xdsl plots
         if sorted(data.keys()) == [u'unit', u'values']:
@@ -128,7 +129,7 @@ def do_format(client, verb, method, arguments):
                 key = pretty_print_value_scalar(key)
                 value = pretty_print_value(value)
                 table.append((key, value))
-            print tabulate.tabulate(table)
+            print pretty_print_table(table, max_col_width=100)
     elif isinstance(data, list):
         for value in data:
             print pretty_print_value_scalar(data)
