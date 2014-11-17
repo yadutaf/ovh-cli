@@ -12,6 +12,10 @@ if runing program is called 'ovh-eu', it will expose european OVH's API', it
 will expose european OVH's API's. Currently supported APIs includes:
     - ovh-eu
     - ovh-ca
+    - kimsufi-eu
+    - kimsufi-ca
+    - soyoustart-eu
+    - soyoustart-ca
     - runabove-ca
 
 TODO:
@@ -177,6 +181,8 @@ if __name__ == '__main__':
     client = ovh.Client(endpoint)
     formater = get_formater(options['format'])
     try:
+      if options['debug']:
+        print >>sys.stderr, 'Calling %s %s' % (verb, method)
       formater.do_format(client, verb, method, arguments.__dict__)
     except Exception as e:
       # print noce error message
