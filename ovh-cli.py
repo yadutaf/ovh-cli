@@ -12,6 +12,10 @@ if runing program is called 'ovh-eu', it will expose european OVH's API', it
 will expose european OVH's API's. Currently supported APIs includes:
     - ovh-eu
     - ovh-ca
+    - kimsufi-eu
+    - kimsufi-ca
+    - soyoustart-eu
+    - soyoustart-ca
     - runabove-ca
 
 TODO:
