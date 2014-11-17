@@ -181,6 +181,8 @@ if __name__ == '__main__':
     client = ovh.Client(endpoint)
     formater = get_formater(options['format'])
     try:
+      if options['debug']:
+        print >>sys.stderr, 'Calling %s %s' % (verb, method)
       formater.do_format(client, verb, method, arguments.__dict__)
     except Exception as e:
       # print noce error message
