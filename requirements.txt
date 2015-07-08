@@ -1,4 +1,4 @@
-ovh==0.2.0
-requests==2.2.1
-tabulate==0.7.3
-pyaml==14.05.7
+ovh
+requests
+tabulate
+pyaml
