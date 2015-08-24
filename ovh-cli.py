@@ -55,6 +55,27 @@ except ImportError:
 
 from ovh.client import ENDPOINTS
 
+## overload ovh client to insert debug informations
+
+class OVHClient(ovh.Client):
+    def __init__(self, debug, *args, **kwargs):
+        super(OVHClient, self).__init__(*args, **kwargs)
+        self.debug=debug
+
+    def call(self, method, path, data=None, need_auth=True):
+        debug = self.debug and path != "/auth/time"
+
+        if debug:
+            sys.stderr.write("%s, %s" % (method, path))
+            if data:
+                sys.stderr.write("(%s)" % data)
+        data = super(OVHClient, self).call(method, path, data, need_auth)
+        if debug:
+            if data:
+                sys.stderr.write(" --> %s" % data)
+            sys.stderr.write("\n")
+        return data
+
 ## parser
 
 def init_arg_parser(endpoint, refresh=False):
@@ -179,17 +200,15 @@ if __name__ == '__main__':
         # abort
         sys.exit(0)
 
-    client = ovh.Client(endpoint)
+    client = OVHClient(options['debug'], endpoint)
     formater = get_formater(options['format'])
     try:
-      if options['debug']:
-        print >>sys.stderr, 'Calling %s %s' % (verb, method)
-      formater.do_format(client, verb, method, arguments.__dict__)
+        formater.do_format(client, verb, method, arguments.__dict__)
     except Exception as e:
-      # print nice error message
-      print e
+        # print nice error message
+        print e
 
-      # when in debug mode, re-raise to see the full stack-trace
-      if options['debug']:
-        raise
+        # when in debug mode, re-raise to see the full stack-trace
+        if options['debug']:
+            raise
 
