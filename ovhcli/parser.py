@@ -229,7 +229,7 @@ class ArgParser(object):
         '''
         parser = argparse.ArgumentParser(action+' '+base_url)
 
-        for param in self._actions[action]['parameters']:
+        for param in self._actions[action]['parameters'] or []:
             if param['paramType'] == 'path':
                 continue
 
