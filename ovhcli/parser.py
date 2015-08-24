@@ -185,7 +185,7 @@ class ArgParser(object):
                 return parser.parse(base_url, args)
 
             # is it an action ?
-            chunk = chunk.lower()
+            # chunk = chunk.lower()
             if chunk in ACTION_ALIASES and ACTION_ALIASES[chunk] in self._actions:
                 verb = ACTION_ALIASES[chunk]
                 args = self.parse_action_params(verb, args, base_url)
