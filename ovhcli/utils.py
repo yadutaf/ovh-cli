@@ -40,4 +40,4 @@ def pretty_print_value_scalar(data):
         return camel_to_human(data)
     # fallback
     else:
-        return unicode(data)
+        return str(data)

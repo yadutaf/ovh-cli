@@ -36,7 +36,7 @@ def pretty_print_value(data):
     elif isinstance(data, list):
         return pretty_print_value_list(data)
     else:
-        return unicode(data)
+        return str(data)
 
 def pretty_print_table(data, max_col_width=50, headers=None):
     # redy to print lines
@@ -78,7 +78,7 @@ def do_format(client, verb, method, arguments):
             for item in line.values():
                 line_data.append(item)
             table.append(line_data)
-        headers = ['ID']+[camel_to_human(title) for title in line.keys()]
+        headers = ['ID']+[camel_to_human(str(title)) for title in line.keys()]
         print pretty_print_table(table, headers=headers, max_col_width=50)
     elif isinstance(data, dict):
         # xdsl plots
