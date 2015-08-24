@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 '''
-OVH CLI. This is a convenient Command Line Interface (CLI) built on top of
+OVH CLI is a convenient Command Line Interface (CLI) built on top of
 ``python-ovh`` and OVH's ReST APIs.
 
 Available command list is generated at runtime based on automatically updated
 json schemas of the API.
 
 The name of the API to use is determined by the executable name. For instance,
-if runing program is called 'ovh-eu', it will expose european OVH's API', it
-will expose european OVH's API's. Currently supported APIs includes:
+if runing program is called 'ovh-eu', it will expose european OVH's API'.
+Currently supported APIs includes:
     - ovh-eu
     - ovh-ca
     - kimsufi-eu
@@ -17,9 +17,6 @@ will expose european OVH's API's. Currently supported APIs includes:
     - soyoustart-eu
     - soyoustart-ca
     - runabove-ca
-
-TODO:
- - list / complete 'enum' arguments
 
 Usage: General: {cli} [--help|--refresh|--format (pretty|json)] your command and args --param value --param2 value2
        Get help on a specific path: {cli} your command --help
@@ -33,7 +30,11 @@ Top level options:
     --help      This message
     --refresh   Rebuild available commands list and documentation
     --format    Output format, can be 'pretty' or 'json'. (default='pretty')
+    --debug     Print verbose debugging informations. Use it when reporting a bug
 '''
+
+# TODO:
+#  - list / complete 'enum' arguments
 
 from __future__ import absolute_import
 
@@ -185,7 +186,7 @@ if __name__ == '__main__':
         print >>sys.stderr, 'Calling %s %s' % (verb, method)
       formater.do_format(client, verb, method, arguments.__dict__)
     except Exception as e:
-      # print noce error message
+      # print nice error message
       print e
 
       # when in debug mode, re-raise to see the full stack-trace

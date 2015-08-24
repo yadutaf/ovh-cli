@@ -46,7 +46,9 @@ as required by your usage for a better security!
 
 - `OVH Europe <https://eu.api.ovh.com/createToken/index.cgi?GET=/*&POST=/*&DELETE=/*&PUT=/*>`_
 - `OVH North America <https://ca.api.ovh.com/createToken/index.cgi?GET=/*&POST=/*&DELETE=/*&PUT=/*>`_
-- `Runabove <https://api.runabove.com/createToken/index.cgi?GET=/*&POST=/*&DELETE=/*&PUT=/*>`_
+- `Runabove <https://api.runabove.com/createApp>`_
+
+For Runabove, you may use included ``create-consumer-key.py runabove-ca`` to generate your consumer key.
 
 Then you should put your credentials in ``~/.ovh.conf`` like:
 
