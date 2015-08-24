@@ -29,7 +29,7 @@ Note: if requested action conflicts with an API action the API action will be
 Top level options:
     --help      This message
     --refresh   Rebuild available commands list and documentation
-    --format    Output format, can be 'pretty' or 'json'. (default='pretty')
+    --format    Output format, can be 'pretty', 'json', 'yaml' or 'bash'. (default='pretty')
     --debug     Print verbose debugging informations. Use it when reporting a bug
 '''
 
