@@ -80,6 +80,8 @@ def do_format(client, verb, method, arguments):
             table.append(line_data)
         headers = ['ID']+[camel_to_human(str(title)) for title in line.keys()]
         print pretty_print_table(table, headers=headers, max_col_width=50)
+    elif not data:
+        print "Success"
     elif isinstance(data, dict):
         # xdsl plots
         if sorted(data.keys()) == [u'unit', u'values']:
@@ -131,12 +133,20 @@ def do_format(client, verb, method, arguments):
                 table.append((key, value))
             print pretty_print_table(table, max_col_width=100)
     elif isinstance(data, list):
-        for value in data:
-            print pretty_print_value_scalar(data)
+        if isinstance(data[0], dict):
+            table = []
+            for line in data:
+                line_data = []
+                for item in line.values():
+                    line_data.append(item)
+                table.append(line_data)
+            headers = [camel_to_human(str(title)) for title in line.keys()]
+            print pretty_print_table(table, headers=headers, max_col_width=50)
+        else:
+            for value in data:
+                print pretty_print_value_scalar(value)
     elif isinstance(data, (int, long, float, unicode, str)):
         print pretty_print_value_scalar(data)
-    elif not data:
-      print "Success"
     else:
       # Should no be here...
       print data
