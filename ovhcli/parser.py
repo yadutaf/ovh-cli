@@ -223,6 +223,51 @@ class ArgParser(object):
             # ambiguous
             raise ArgParserUnknownRoute('No default actions is available for %s. Please pick one manually' % base_url)
 
+    def _register_parser_command(self, parser, action, name, type, required, description):
+        # decode datatype
+        datatype = schema_datatype_to_type(type)
+        choices = None
+
+        if datatype is None:
+            if type in self.schema['models']:
+                model = self.schema['models'][type]
+                if 'enum' in model:
+                    datatype = schema_datatype_to_type(model['enumType'])
+                    choices = model['enum']
+                elif 'properties' in model:
+                    for name, prop in model['properties'].iteritems():
+                        if prop.get('readOnly', 1) != 0:
+                            continue
+
+                        self._register_parser_command(
+                            parser,
+                            action,
+                            name,
+                            prop['type'],
+                            not bool(prop.get('canBeNull', 0)),
+                            prop.get('description', ''),
+                        )
+                    return
+                else:
+                    # Ooops, unknown type...
+                    return
+            else:
+                datatype = str
+
+        # Never require a '--' (not part of the path) parameter on PUT
+        if action == "PUT":
+            required = False
+
+        # Register command
+        parser.add_argument(
+                '--'+name,
+                type=datatype,
+                required=required,
+                help=description,
+                default=argparse.SUPPRESS,
+                choices=choices,
+        )
+
     def parse_action_params(self, action, args, base_url):
         '''
         parse remaining positional arguments
@@ -233,27 +278,15 @@ class ArgParser(object):
             if param['paramType'] == 'path':
                 continue
 
-            # decode datatype
-            datatype = schema_datatype_to_type(param['dataType'])
-            choices = None
-
-            if datatype is None:
-                if param['dataType'] in self.schema['models']:
-                    model = self.schema['models'][param['dataType']]
-                    if 'enum' in model:
-                        datatype = schema_datatype_to_type(model['enumType'])
-                        choices = model['enum']
-                else:
-                    datatype = str
-
-            parser.add_argument(
-                    '--'+param['name'],
-                    type=datatype,
-                    required=bool(param.get('required', 0)),
-                    help=param.get('description', ''),
-                    default=argparse.SUPPRESS,
-                    choices=choices,
+            self._register_parser_command(
+                parser,
+                action,
+                param.get('name'),
+                param.get('dataType'),
+                bool(param.get('required', 0)),
+                param.get('description', ''),
             )
+
         return parser.parse_args(args)
 
     def get_help_message(self):
