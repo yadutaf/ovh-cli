@@ -306,6 +306,8 @@ class ArgParser(object):
             else:
                 msg = self.help
             msg +='\n\n'
+        else:
+            msg += ":\n\n"
 
         # list actions
         if self._actions:
