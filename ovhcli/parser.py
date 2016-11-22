@@ -3,6 +3,7 @@
 Argument parser, supports 'url-like' positional argument sequence
 '''
 
+import json
 import urllib
 import argparse
 
@@ -35,12 +36,20 @@ class ArgParserException(Exception): pass
 class ArgParserTypeConflict(ArgParserException): pass
 class ArgParserUnknownRoute(ArgParserException): pass
 
+def parse_bool(data):
+    data = data.lower().strip()
+    if data in ['', '0', 'off', 'false', 'no']:
+        return False
+    return True
+
 def schema_datatype_to_type(datatype):
     if datatype == 'string': return str
+    if datatype == 'text':   return str
     if datatype == 'long':   return long
     if datatype == 'int':    return int
     if datatype == 'float':  return float
     if datatype == 'double': return float
+    if datatype == 'boolean': return parse_bool
     return None
 
 class ArgParser(object):
@@ -252,7 +261,7 @@ class ArgParser(object):
                     # Ooops, unknown type...
                     return
             else:
-                datatype = str
+                datatype = json.loads
 
         # Never require a '--' (not part of the path) parameter on PUT
         if action == "PUT":
