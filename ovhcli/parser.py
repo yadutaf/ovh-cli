@@ -50,6 +50,7 @@ def schema_datatype_to_type(datatype):
     if datatype == 'float':  return float
     if datatype == 'double': return float
     if datatype == 'boolean': return parse_bool
+    if datatype in ['ip', 'ipBlock']: return str
     return None
 
 class ArgParser(object):
@@ -233,10 +234,16 @@ class ArgParser(object):
             raise ArgParserUnknownRoute('No default actions is available for %s. Please pick one manually' % base_url)
 
     def _register_parser_command(self, parser, action, name, type, required, description):
-        # decode datatype
-        datatype = schema_datatype_to_type(type)
         choices = None
+        description = description.replace('%', '%%') # Encode description to fix some help printing
 
+        # Decode datatype
+        is_array = type.endswith('[]')
+        if is_array:
+            type = type[:-2]
+        datatype = schema_datatype_to_type(type)
+
+        # Decode complex data types
         if datatype is None:
             if type in self.schema['models']:
                 model = self.schema['models'][type]
@@ -271,6 +278,7 @@ class ArgParser(object):
         parser.add_argument(
                 '--'+name,
                 type=datatype,
+                action='append' if is_array else 'store',
                 required=required,
                 help=description,
                 default=argparse.SUPPRESS,
