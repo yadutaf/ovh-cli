@@ -241,6 +241,7 @@ class ArgParser(object):
         is_array = type.endswith('[]')
         if is_array:
             type = type[:-2]
+            description = '(list) '+description
         datatype = schema_datatype_to_type(type)
 
         # Decode complex data types
@@ -250,23 +251,9 @@ class ArgParser(object):
                 if 'enum' in model:
                     datatype = schema_datatype_to_type(model['enumType'])
                     choices = model['enum']
-                elif 'properties' in model:
-                    for name, prop in model['properties'].iteritems():
-                        if prop.get('readOnly', 1) != 0:
-                            continue
-
-                        self._register_parser_command(
-                            parser,
-                            action,
-                            name,
-                            prop['type'],
-                            not bool(prop.get('canBeNull', 0)),
-                            prop.get('description', ''),
-                        )
-                    return
                 else:
                     # Ooops, unknown type...
-                    return
+                    datatype = json.loads
             else:
                 datatype = json.loads
 
@@ -295,14 +282,31 @@ class ArgParser(object):
             if param['paramType'] == 'path':
                 continue
 
-            self._register_parser_command(
-                parser,
-                action,
-                param.get('name'),
-                param.get('dataType'),
-                bool(param.get('required', 0)),
-                param.get('description', ''),
-            )
+            # For PUT case, we need to add individual fields of the object to edit
+            typename = param.get('dataType')
+            if action == "PUT" and typename in self.schema['models']:
+                model = self.schema['models'][typename]
+                for name, prop in model['properties'].iteritems():
+                    if prop.get('readOnly', 1) != 0:
+                        continue
+
+                    self._register_parser_command(
+                        parser,
+                        action,
+                        name,
+                        prop['type'],
+                        not bool(prop.get('canBeNull', 0)),
+                        prop.get('description', ''),
+                    )
+            else:
+                self._register_parser_command(
+                    parser,
+                    action,
+                    param.get('name'),
+                    typename,
+                    bool(param.get('required', 0)),
+                    param.get('description', ''),
+                )
 
         return parser.parse_args(args)
 
