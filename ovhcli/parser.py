@@ -235,6 +235,7 @@ class ArgParser(object):
 
     def _register_parser_command(self, parser, action, name, type, required, description):
         choices = None
+        description = description or ''
         description = description.replace('%', '%%') # Encode description to fix some help printing
 
         # Decode datatype
