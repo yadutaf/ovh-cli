@@ -36,7 +36,7 @@ def pretty_print_value(data):
     elif isinstance(data, list):
         return pretty_print_value_list(data)
     else:
-        return str(data)
+        return unicode(data)
 
 def pretty_print_table(data, max_col_width=50, headers=None):
     # redy to print lines
