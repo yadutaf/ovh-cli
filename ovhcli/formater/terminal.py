@@ -5,7 +5,8 @@ import datetime
 import tabulate
 import textwrap
 
-from ovhcli.utils import grouped, camel_to_snake, camel_to_human, pretty_print_value_scalar
+from ovhcli.utils import grouped, camel_to_snake, camel_to_human
+from ovhcli.utils import pretty_print_value_scalar, pretty_print_key_scalar
 
 ## utils
 
@@ -128,7 +129,7 @@ def do_format(client, verb, method, arguments):
         else:
             table = []
             for key, value in data.iteritems():
-                key = pretty_print_value_scalar(key)
+                key = pretty_print_key_scalar(key)
                 value = pretty_print_value(value)
                 table.append((key, value))
             print pretty_print_table(table, max_col_width=100)

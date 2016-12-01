@@ -32,12 +32,16 @@ def camel_to_human(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1 \2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1 \2', s1).capitalize()
 
-def pretty_print_value_scalar(data):
+def pretty_print_key_scalar(data):
     # float data ?
     if isinstance(data, float):
         return "%.3f" % data
     elif isinstance(data, (str, unicode)):
         return camel_to_human(data)
-    # fallback
-    else:
-        return str(data)
+    return unicode(data)
+
+def pretty_print_value_scalar(data):
+    # float data ?
+    if isinstance(data, float):
+        return "%.3f" % data
+    return unicode(data)
