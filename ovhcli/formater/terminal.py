@@ -5,8 +5,43 @@ import datetime
 import tabulate
 import textwrap
 
+from threading import Thread
+from Queue import Queue
+
 from ovhcli.utils import grouped, camel_to_snake, camel_to_human
 from ovhcli.utils import pretty_print_value_scalar, pretty_print_key_scalar
+
+## parallel requests
+
+CONCURRENT = 20
+q = Queue()
+
+def doWork(client, urls, data):
+    while not urls.empty():
+        elem, url = urls.get()
+        data.append((elem, client.get(url)))
+        urls.task_done()
+
+def batch_get(client, urls):
+    '''
+    Get all urls in queue using client
+    '''
+    result = []
+
+    # Create thread pool
+    threads = []
+    for i in xrange(min(urls.qsize(), CONCURRENT)):
+        t = Thread(target=doWork, args=(client, urls, result))
+        t.daemon = True
+        t.start()
+        threads.append(t)
+
+    # Wait for all threads to be done
+    for t in threads:
+        t.join()
+
+    # All done
+    return result
 
 ## utils
 
@@ -72,10 +107,21 @@ def do_format(client, verb, method, arguments):
        and isinstance(data, list)\
        and data and isinstance(data[0], (int, long, str, unicode)):
 
+        # Early exit if the list of IDs is empty
+        if not data:
+            return
+
         table = []
+        urls = Queue()
         for elem in data:
-            line = client.get(method+'/'+urllib.quote_plus(str(elem)))
-            line_data = [elem]
+            urls.put((elem, method+'/'+urllib.quote_plus(str(elem))));
+
+        # Get the data
+        lines = batch_get(client, urls)
+
+        # Format the data
+        for item, line in lines:
+            line_data = [item]
             for item in line.values():
                 line_data.append(item)
             table.append(line_data)
