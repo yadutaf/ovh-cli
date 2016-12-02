@@ -119,13 +119,24 @@ def do_format(client, verb, method, arguments):
         # Get the data
         lines = batch_get(client, urls)
 
+        # If the id is repeated on the data, skip the field
+        item = str(lines[0][0])
+        skip_field = ''
+        for key, value in lines[0][1].iteritems():
+            if item == str(value):
+                skip_field = key
+                break
+
         # Format the data
         for item, line in lines:
             line_data = [item]
-            for item in line.values():
-                line_data.append(item)
+            for key, value in line.iteritems():
+                if key == skip_field:
+                    continue
+                line_data.append(value)
             table.append(line_data)
-        headers = ['ID']+[camel_to_human(str(title)) for title in line.keys()]
+
+        headers = ['ID']+[camel_to_human(str(title)) for title in line.keys() if title != skip_field]
         print pretty_print_table(table, headers=headers, max_col_width=50)
     elif isinstance(data, dict):
         if not data:
