@@ -252,11 +252,12 @@ class ArgParser(object):
                 if 'enum' in model:
                     datatype = schema_datatype_to_type(model['enumType'])
                     choices = model['enum']
-                else:
-                    # Ooops, unknown type...
+                elif 'properties' in model:
                     datatype = json.loads
+                else:
+                    datatype = str
             else:
-                datatype = json.loads
+                datatype = str
 
         # Never require a '--' (not part of the path) parameter on PUT
         if action == "PUT":
